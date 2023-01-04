@@ -1,0 +1,1920 @@
+{
+	"name": "traffic-prediction-and-some-analysis",
+	"properties": {
+		"folder": {
+			"name": "Traffic"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "nrpsparkpool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "56g",
+			"driverCores": 8,
+			"executorMemory": "56g",
+			"executorCores": 8,
+			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "b61cd902-2664-451a-8fa6-03309a528bf6"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/0c9ca8c4-a7be-4a66-a8b2-10b180fc0ca9/resourceGroups/LABS/providers/Microsoft.Synapse/workspaces/nrpsynapse/bigDataPools/nrpsparkpool",
+				"name": "nrpsparkpool",
+				"type": "Spark",
+				"endpoint": "https://nrpsynapse.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/nrpsparkpool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net",
+					"authHeader": null
+				},
+				"sparkVersion": "2.4",
+				"nodeCount": 10,
+				"cores": 8,
+				"memory": 56,
+				"extraHeader": null
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.052693,
+						"end_time": "2021-09-27T02:05:55.7839Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:05:55.731207Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"# Some basic info about this dataset\n",
+					"- Has 4 Junction"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:05:56.012052Z",
+						"iopub.status.busy": "2021-09-27T02:05:56.011395Z",
+						"iopub.status.idle": "2021-09-27T02:05:57.536677Z",
+						"shell.execute_reply": "2021-09-27T02:05:57.537164Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:44.5151Z"
+					},
+					"papermill": {
+						"duration": 1.582162,
+						"end_time": "2021-09-27T02:05:57.537355Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:05:55.955193Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"import seaborn as sns\n",
+					"import matplotlib.pyplot as plt\n",
+					"from matplotlib.dates import DateFormatter\n",
+					"from datetime import datetime, timedelta, date\n",
+					"from scipy import stats\n",
+					"from sklearn.preprocessing import StandardScaler\n",
+					"from sklearn.model_selection import train_test_split\n",
+					"from sklearn.ensemble import RandomForestRegressor\n",
+					"from sklearn.ensemble import GradientBoostingRegressor\n",
+					"from sklearn.metrics import r2_score, mean_squared_error\n",
+					"from statsmodels.graphics.tsaplots import plot_acf, plot_pacf"
+				],
+				"execution_count": 47
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:05:57.645349Z",
+						"iopub.status.busy": "2021-09-27T02:05:57.644714Z",
+						"iopub.status.idle": "2021-09-27T02:05:57.759108Z",
+						"shell.execute_reply": "2021-09-27T02:05:57.759719Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:45.906242Z"
+					},
+					"papermill": {
+						"duration": 0.171447,
+						"end_time": "2021-09-27T02:05:57.759894Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:05:57.588447Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"# Read the read data from ADLS2\n",
+					"import fsspec\n",
+					"import pandas as pd\n",
+					"\n",
+					"adls_account_name = 'nitinadls2' #Provide exact ADLS account name\n",
+					"adls_account_key = '7xhN9hCHWwtYasQqHPTWck9whdjna/eXSwTmu+EESK5kVAI0OxpO0h3u1AP9MG++0A4ajJPP7RzcO64cn+WzNg==' #Provide exact ADLS account key\n",
+					"\n",
+					"fsspec_handle = fsspec.open('abfs://synapse/traffic.csv', account_name=adls_account_name, account_key=adls_account_key)\n",
+					"\n",
+					"with fsspec_handle.open() as f:\n",
+					"    df = pandas.read_csv(f)"
+				],
+				"execution_count": 48
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.050679,
+						"end_time": "2021-09-27T02:05:57.865548Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:05:57.814869Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Some describe in this dataset**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:05:57.970568Z",
+						"iopub.status.busy": "2021-09-27T02:05:57.969966Z",
+						"iopub.status.idle": "2021-09-27T02:05:57.99596Z",
+						"shell.execute_reply": "2021-09-27T02:05:57.995392Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:46.002524Z"
+					},
+					"papermill": {
+						"duration": 0.079649,
+						"end_time": "2021-09-27T02:05:57.996104Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:05:57.916455Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"df.describe()"
+				],
+				"execution_count": 49
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.051323,
+						"end_time": "2021-09-27T02:05:58.101554Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:05:58.050231Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.051363,
+						"end_time": "2021-09-27T02:05:58.205843Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:05:58.15448Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Extract Year, Month, Day, Hour** from **index**\n",
+					"- I split Year, Month, Day, Hour from data for plotting purpose"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df"
+				],
+				"execution_count": 50
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:05:58.333058Z",
+						"iopub.status.busy": "2021-09-27T02:05:58.317257Z",
+						"iopub.status.idle": "2021-09-27T02:05:59.650951Z",
+						"shell.execute_reply": "2021-09-27T02:05:59.650266Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:46.028463Z"
+					},
+					"papermill": {
+						"duration": 1.393475,
+						"end_time": "2021-09-27T02:05:59.651087Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:05:58.257612Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"# # extract year from date\n",
+					"# df['Year'] = pd.Series(df.index).apply(lambda x: x.year).to_list()\n",
+					"\n",
+					"# # extract month from date\n",
+					"# df['Month'] = pd.Series(df.index).apply(lambda x: x.month).to_list()\n",
+					"\n",
+					"# # extract day from date\n",
+					"# df['Day'] = pd.Series(df.index).apply(lambda x: x.day).to_list()\n",
+					"\n",
+					"# # extract hour from date\n",
+					"# df['Hour'] = pd.Series(df.index).apply(lambda x: x.hour).to_list()\n",
+					"\n",
+					"df['Year'] = pd.DatetimeIndex(df['DateTime']).year\n",
+					"df['Month'] = pd.DatetimeIndex(df['DateTime']).month\n",
+					"df['Day'] = pd.DatetimeIndex(df['DateTime']).day\n",
+					"df['Hour'] = pd.DatetimeIndex(df['DateTime']).hour\n",
+					"\n",
+					"df\n",
+					""
+				],
+				"execution_count": 51
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.051256,
+						"end_time": "2021-09-27T02:05:59.754734Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:05:59.703478Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Drop the ID column**\n",
+					"I think ID does not effect to this dataset, so just drop it!"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:05:59.863453Z",
+						"iopub.status.busy": "2021-09-27T02:05:59.86282Z",
+						"iopub.status.idle": "2021-09-27T02:05:59.870901Z",
+						"shell.execute_reply": "2021-09-27T02:05:59.870238Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:46.842669Z"
+					},
+					"papermill": {
+						"duration": 0.064822,
+						"end_time": "2021-09-27T02:05:59.871039Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:05:59.806217Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"df.drop('ID', axis=1, inplace=True)"
+				],
+				"execution_count": 52
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.051016,
+						"end_time": "2021-09-27T02:05:59.973715Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:05:59.922699Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"I make a `make_hist` function for making `histogram` with `kde` plot, for plotting 4 junction"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.055598,
+						"end_time": "2021-09-27T02:06:00.080523Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:00.024925Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"# Data Exploration"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:00.191361Z",
+						"iopub.status.busy": "2021-09-27T02:06:00.190579Z",
+						"iopub.status.idle": "2021-09-27T02:06:00.193042Z",
+						"shell.execute_reply": "2021-09-27T02:06:00.193565Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:46.853609Z"
+					},
+					"papermill": {
+						"duration": 0.060773,
+						"end_time": "2021-09-27T02:06:00.193738Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:00.132965Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"def make_hist(junction=1):\n",
+					"    data = df[df['Junction'] == junction]\n",
+					"    f, ax = plt.subplots(figsize=(17, 5))\n",
+					"    ax = sns.histplot(data['Vehicles'], kde=True, stat='probability')\n",
+					"    ax.set_title(f'Plot show the distribution of data in junction {junction}')\n",
+					"    ax.grid(True, ls='-.', alpha=0.75)\n",
+					"    plt.show()"
+				],
+				"execution_count": 53
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:00.300018Z",
+						"iopub.status.busy": "2021-09-27T02:06:00.299365Z",
+						"iopub.status.idle": "2021-09-27T02:06:00.812323Z",
+						"shell.execute_reply": "2021-09-27T02:06:00.811708Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:46.859751Z"
+					},
+					"papermill": {
+						"duration": 0.567196,
+						"end_time": "2021-09-27T02:06:00.812474Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:00.245278Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"make_hist(1)"
+				],
+				"execution_count": 54
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:00.933695Z",
+						"iopub.status.busy": "2021-09-27T02:06:00.933059Z",
+						"iopub.status.idle": "2021-09-27T02:06:01.404636Z",
+						"shell.execute_reply": "2021-09-27T02:06:01.405105Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:47.341494Z"
+					},
+					"papermill": {
+						"duration": 0.530946,
+						"end_time": "2021-09-27T02:06:01.40528Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:00.874334Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"make_hist(2)"
+				],
+				"execution_count": 55
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:01.520236Z",
+						"iopub.status.busy": "2021-09-27T02:06:01.519549Z",
+						"iopub.status.idle": "2021-09-27T02:06:02.327378Z",
+						"shell.execute_reply": "2021-09-27T02:06:02.326746Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:47.774551Z"
+					},
+					"papermill": {
+						"duration": 0.86736,
+						"end_time": "2021-09-27T02:06:02.327534Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:01.460174Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"make_hist(3)"
+				],
+				"execution_count": 56
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:02.444377Z",
+						"iopub.status.busy": "2021-09-27T02:06:02.443767Z",
+						"iopub.status.idle": "2021-09-27T02:06:02.812246Z",
+						"shell.execute_reply": "2021-09-27T02:06:02.812767Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:48.513654Z"
+					},
+					"papermill": {
+						"duration": 0.429051,
+						"end_time": "2021-09-27T02:06:02.812937Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:02.383886Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"make_hist(4)"
+				],
+				"execution_count": 57
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.057041,
+						"end_time": "2021-09-27T02:06:02.927628Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:02.870587Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"In 4 plot, its can show us that `Vehicles` in each junction is normal distribution with skew"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:03.048476Z",
+						"iopub.status.busy": "2021-09-27T02:06:03.047844Z",
+						"iopub.status.idle": "2021-09-27T02:06:03.050791Z",
+						"shell.execute_reply": "2021-09-27T02:06:03.051452Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:48.845847Z"
+					},
+					"papermill": {
+						"duration": 0.066633,
+						"end_time": "2021-09-27T02:06:03.05164Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:02.985007Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"df.tail(1).Year[0]"
+				],
+				"execution_count": 58
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:03.172033Z",
+						"iopub.status.busy": "2021-09-27T02:06:03.171372Z",
+						"iopub.status.idle": "2021-09-27T02:06:03.178175Z",
+						"shell.execute_reply": "2021-09-27T02:06:03.17869Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:48.853269Z"
+					},
+					"papermill": {
+						"duration": 0.06842,
+						"end_time": "2021-09-27T02:06:03.178877Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:03.110457Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"def make_time_series_plot(junction=1):\n",
+					"    f, ax = plt.subplots(figsize=(17, 5))\n",
+					"    data=df[df.Junction == junction]\n",
+					"    ax = sns.lineplot(data=data, y='Vehicles', x='DateTime', ax=ax)\n",
+					"    start = data.head(1)\n",
+					"    end = data.tail(1)\n",
+					"    ax.set_title(f'Plot show amounts of Vehicles in junction {junction} from {start.Month[0]}-{start.Year[0]} to {end.Month[0]}-{end.Year[0]}', fontsize=15)\n",
+					"    ax.grid(True, ls='-.', alpha=0.75)\n",
+					"    plt.show()"
+				],
+				"execution_count": 59
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:03.297537Z",
+						"iopub.status.busy": "2021-09-27T02:06:03.296939Z",
+						"iopub.status.idle": "2021-09-27T02:06:05.023012Z",
+						"shell.execute_reply": "2021-09-27T02:06:05.023543Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:48.863378Z"
+					},
+					"papermill": {
+						"duration": 1.787036,
+						"end_time": "2021-09-27T02:06:05.023718Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:03.236682Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"make_time_series_plot(1)"
+				],
+				"execution_count": 60
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:05.148203Z",
+						"iopub.status.busy": "2021-09-27T02:06:05.147627Z",
+						"iopub.status.idle": "2021-09-27T02:06:06.865222Z",
+						"shell.execute_reply": "2021-09-27T02:06:06.865745Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:50.338883Z"
+					},
+					"papermill": {
+						"duration": 1.781657,
+						"end_time": "2021-09-27T02:06:06.865932Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:05.084275Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"make_time_series_plot(2)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:07.025318Z",
+						"iopub.status.busy": "2021-09-27T02:06:07.024656Z",
+						"iopub.status.idle": "2021-09-27T02:06:08.908442Z",
+						"shell.execute_reply": "2021-09-27T02:06:08.908946Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:51.841703Z"
+					},
+					"papermill": {
+						"duration": 1.974446,
+						"end_time": "2021-09-27T02:06:08.909117Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:06.934671Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"make_time_series_plot(3)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:09.043682Z",
+						"iopub.status.busy": "2021-09-27T02:06:09.043033Z",
+						"iopub.status.idle": "2021-09-27T02:06:09.733327Z",
+						"shell.execute_reply": "2021-09-27T02:06:09.733814Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:53.444085Z"
+					},
+					"papermill": {
+						"duration": 0.758872,
+						"end_time": "2021-09-27T02:06:09.733992Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:08.97512Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"make_time_series_plot(4)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:09.875023Z",
+						"iopub.status.busy": "2021-09-27T02:06:09.874306Z",
+						"iopub.status.idle": "2021-09-27T02:06:14.414462Z",
+						"shell.execute_reply": "2021-09-27T02:06:14.415Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:54.034464Z"
+					},
+					"papermill": {
+						"duration": 4.611812,
+						"end_time": "2021-09-27T02:06:14.415176Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:09.803364Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"f, ax = plt.subplots(3, 4, figsize=(20, 10))\n",
+					"\n",
+					"for i, year in enumerate(range(2015, 2018)):\n",
+					"  for j, junction in enumerate(range(1, 5)):\n",
+					"    sns.lineplot(data=df[(df.Junction == junction) & (df.Year == year)], x='Month', y='Vehicles', ax=ax[i, j])\n",
+					"    ax[i, j].grid(True, alpha=0.75, ls='-.')\n",
+					"\n",
+					"plt.xlabel('Year')\n",
+					"plt.ylabel('Junction')\n",
+					"f.suptitle('Line plot showing the pattern amounts of Vehicles by Year and by Junction', fontsize=20)\n",
+					"plt.show()"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.074468,
+						"end_time": "2021-09-27T02:06:14.565053Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:14.490585Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Normal data histogram**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:14.762756Z",
+						"iopub.status.busy": "2021-09-27T02:06:14.758827Z",
+						"iopub.status.idle": "2021-09-27T02:06:18.051688Z",
+						"shell.execute_reply": "2021-09-27T02:06:18.05219Z",
+						"shell.execute_reply.started": "2021-09-27T02:02:57.589376Z"
+					},
+					"papermill": {
+						"duration": 3.413039,
+						"end_time": "2021-09-27T02:06:18.052368Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:14.639329Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"f, axis = plt.subplots(3, 4, figsize=(20, 10))\n",
+					"\n",
+					"for i, year in enumerate(range(2015, 2018)):\n",
+					"  for j, junction in enumerate(range(1, 5)):\n",
+					"    sns.histplot(df[(df.Junction == junction) & (df.Year == year)]['Vehicles'], kde=True, ax=axis[i, j], stat='probability')\n",
+					"    axis[i, j].grid(True, alpha=0.75, ls='-.')\n",
+					"\n",
+					"plt.xlabel('Year')\n",
+					"plt.ylabel('Junction')\n",
+					"f.suptitle('Histogram showing the distribution of Vehicles by Year and by Junction', fontsize=20)\n",
+					"plt.show()"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.079894,
+						"end_time": "2021-09-27T02:06:18.213165Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:18.133271Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Z Score data distribution and Histogram with Z Score Vehicles form Data**\n",
+					"- Mean = 0\n",
+					"- Standard Deviation = 1"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:18.377253Z",
+						"iopub.status.busy": "2021-09-27T02:06:18.376255Z",
+						"iopub.status.idle": "2021-09-27T02:06:18.379323Z",
+						"shell.execute_reply": "2021-09-27T02:06:18.378785Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:00.526267Z"
+					},
+					"papermill": {
+						"duration": 0.086477,
+						"end_time": "2021-09-27T02:06:18.379474Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:18.292997Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"standardization = lambda x: StandardScaler().fit_transform(x)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:18.542732Z",
+						"iopub.status.busy": "2021-09-27T02:06:18.542072Z",
+						"iopub.status.idle": "2021-09-27T02:06:18.556053Z",
+						"shell.execute_reply": "2021-09-27T02:06:18.556594Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:00.532492Z"
+					},
+					"papermill": {
+						"duration": 0.098039,
+						"end_time": "2021-09-27T02:06:18.556764Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:18.458725Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"z_df = df.copy()\n",
+					"z_df['Vehicles'] = standardization(z_df.Vehicles.values.reshape(-1, 1))\n",
+					"z_df.head()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:18.720068Z",
+						"iopub.status.busy": "2021-09-27T02:06:18.719429Z",
+						"iopub.status.idle": "2021-09-27T02:06:22.094652Z",
+						"shell.execute_reply": "2021-09-27T02:06:22.095143Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:00.555616Z"
+					},
+					"papermill": {
+						"duration": 3.458718,
+						"end_time": "2021-09-27T02:06:22.095322Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:18.636604Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"f, axis = plt.subplots(3, 4, figsize=(20, 10))\n",
+					"\n",
+					"for i, year in enumerate(range(2015, 2018)):\n",
+					"  for j, junction in enumerate(range(1, 5)):\n",
+					"    sns.histplot(z_df[(z_df.Junction == junction) & (z_df.Year == year)]['Vehicles'], kde=True, ax=axis[i, j], stat='probability')\n",
+					"    axis[i, j].grid(True, alpha=0.75, ls='-.')\n",
+					"    \n",
+					"plt.xlabel('Year')\n",
+					"plt.ylabel('Junction')\n",
+					"f.suptitle('Histogram showing the distribution of Vehicles by Year and by Junction when data transfrom to Z Score', fontsize=20)\n",
+					"plt.show()"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.085864,
+						"end_time": "2021-09-27T02:06:22.26864Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:22.182776Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Boxplot for Vehicles**\n",
+					"- In boxplot, we can see a lot of outliers (those which is the dot)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:22.485469Z",
+						"iopub.status.busy": "2021-09-27T02:06:22.459515Z",
+						"iopub.status.idle": "2021-09-27T02:06:23.898442Z",
+						"shell.execute_reply": "2021-09-27T02:06:23.8979Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:03.616377Z"
+					},
+					"papermill": {
+						"duration": 1.543569,
+						"end_time": "2021-09-27T02:06:23.898578Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:22.355009Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"f, axis = plt.subplots(3, 4, figsize=(20, 10))\n",
+					"\n",
+					"for i, year in zip(range(3), range(2015, 2018)):\n",
+					"  for j, junction in zip(range(4), range(1, 5)):\n",
+					"    sns.boxplot(x=df[(df.Junction == junction) & (df.Year == year)]['Vehicles'], ax=axis[i, j])\n",
+					"    axis[i, j].grid(True, alpha=0.75, ls='-.')\n",
+					"\n",
+					"plt.xlabel('Year')\n",
+					"plt.ylabel('Junction')\n",
+					"f.suptitle('Boxplot showing the range of amounts Vehicles by Year and by Junction', fontsize=20)\n",
+					"plt.show()"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.087347,
+						"end_time": "2021-09-27T02:06:24.07469Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:23.987343Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Heatmap about data attributes**\n",
+					"- The value closer to 1 or -1 is best correlation to each other.\n",
+					"- As close as to -1, that pair of attribute is more **negative** correlation.\n",
+					"- As close as to 1, that pair of attribute is more **positive** correlation.\n",
+					"- As close as to 0, that pair of attribute is **not** correlating to each other."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:24.256785Z",
+						"iopub.status.busy": "2021-09-27T02:06:24.256049Z",
+						"iopub.status.idle": "2021-09-27T02:06:24.700361Z",
+						"shell.execute_reply": "2021-09-27T02:06:24.69984Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:04.948537Z"
+					},
+					"papermill": {
+						"duration": 0.537974,
+						"end_time": "2021-09-27T02:06:24.700542Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:24.162568Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"corr = df.corr()\n",
+					"f, ax = plt.subplots(figsize=(16, 7))\n",
+					"sns.heatmap(corr, annot=True, fmt='.2f', vmin=-1, vmax=1, square=True, linewidths=1)\n",
+					"f.suptitle('Heatmap showing the correlation of data attributes', fontsize=20)\n",
+					"plt.show()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:24.887755Z",
+						"iopub.status.busy": "2021-09-27T02:06:24.887122Z",
+						"iopub.status.idle": "2021-09-27T02:06:24.890256Z",
+						"shell.execute_reply": "2021-09-27T02:06:24.889627Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:05.363888Z"
+					},
+					"papermill": {
+						"duration": 0.098834,
+						"end_time": "2021-09-27T02:06:24.890424Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:24.79159Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"def get_list_data(dataf, drop=[]):\n",
+					"  # drop cột DateTime ở các data\n",
+					"  for i in drop:\n",
+					"    try:\n",
+					"      dataf.drop(drop, axis=1, inplace=True)\n",
+					"    except:\n",
+					"      print(f\"{i} doesn't has in data\")\n",
+					"  # create a list of dataframe has the data in that junction and remove the junction identify\n",
+					"  dataf = [dataf[dataf.Junction == i].drop('Junction', axis=1) for i in range(5)]\n",
+					"  return dataf"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:25.073541Z",
+						"iopub.status.busy": "2021-09-27T02:06:25.072832Z",
+						"iopub.status.idle": "2021-09-27T02:06:25.095049Z",
+						"shell.execute_reply": "2021-09-27T02:06:25.095568Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:05.371336Z"
+					},
+					"papermill": {
+						"duration": 0.116167,
+						"end_time": "2021-09-27T02:06:25.095745Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:24.979578Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"data = get_list_data(df)\n",
+					"for i in data:\n",
+					"    print(i.head(1))"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:25.277501Z",
+						"iopub.status.busy": "2021-09-27T02:06:25.27688Z",
+						"iopub.status.idle": "2021-09-27T02:06:26.128379Z",
+						"shell.execute_reply": "2021-09-27T02:06:26.128912Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:05.402526Z"
+					},
+					"papermill": {
+						"duration": 0.943889,
+						"end_time": "2021-09-27T02:06:26.12908Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:25.185191Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"f, ax = plt.subplots(nrows=4, figsize=(20, 15))\n",
+					"for i in range(4):\n",
+					"    ax[i].plot(data[i + 1].resample('D').sum().Vehicles, label=f'Vehicles of {i + 1} Junction', lw=2)\n",
+					"    ax[i].grid(True, alpha=0.75, lw=1, ls='-.')\n",
+					"    ax[i].set_title(f'Junction {i + 1}')\n",
+					"f.suptitle('Plots show amounts of Vehicles by Junction, each Junction by day (24h)', fontsize=20);"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:26.329973Z",
+						"iopub.status.busy": "2021-09-27T02:06:26.329337Z",
+						"iopub.status.idle": "2021-09-27T02:06:27.154102Z",
+						"shell.execute_reply": "2021-09-27T02:06:27.154631Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:06.147816Z"
+					},
+					"papermill": {
+						"duration": 0.926428,
+						"end_time": "2021-09-27T02:06:27.154804Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:26.228376Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"f, ax = plt.subplots(nrows=4, figsize=(20, 15))\n",
+					"for i in range(4):\n",
+					"    ax[i].plot(data[i + 1].resample('M').sum().Vehicles, label=f'Vehicles of {i + 1} Junction', lw=2)\n",
+					"    ax[i].grid(True, alpha=0.75, lw=1, ls='-.')\n",
+					"    ax[i].set_ylabel('Số lượng', fontsize=15)\n",
+					"    ax[i].set_title(f'Junction {i + 1}')\n",
+					"f.suptitle('Plots show amounts of Vehicles by Junction, each Junction by Month', fontsize=20);"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:27.406156Z",
+						"iopub.status.busy": "2021-09-27T02:06:27.387546Z",
+						"iopub.status.idle": "2021-09-27T02:06:28.325088Z",
+						"shell.execute_reply": "2021-09-27T02:06:28.325614Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:06.874379Z"
+					},
+					"papermill": {
+						"duration": 1.066562,
+						"end_time": "2021-09-27T02:06:28.325788Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:27.259226Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"f, ax = plt.subplots(nrows=4, figsize=(22, 20))\n",
+					"for i in range(4):\n",
+					"    ax[i].plot(data[i + 1].resample('12H').sum().Vehicles, label=f'Vehicles of {i + 1} Junction', lw=1)\n",
+					"    ax[i].grid(True, alpha=0.75, lw=1, ls='-.')\n",
+					"    ax[i].set_title(f'Junction {i + 1}')\n",
+					"f.suptitle('Plots show amounts of Vehicles by Junction, each Junction by haft day(12h)', fontsize=20);"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:28.604431Z",
+						"iopub.status.busy": "2021-09-27T02:06:28.599221Z",
+						"iopub.status.idle": "2021-09-27T02:06:29.45089Z",
+						"shell.execute_reply": "2021-09-27T02:06:29.45137Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:07.722342Z"
+					},
+					"papermill": {
+						"duration": 1.006352,
+						"end_time": "2021-09-27T02:06:29.451554Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:28.445202Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"f, ax = plt.subplots(nrows=4, figsize=(22, 15))\n",
+					"for i in range(4):\n",
+					"    ax[i].plot(data[i + 1].resample('6H').sum().Vehicles, label=f'Vehicles of {i + 1} Junction', lw=2)\n",
+					"    ax[i].grid(True, alpha=0.75, lw=1, ls='-.')\n",
+					"    ax[i].set_title(f'Junction {i + 1}')\n",
+					"f.suptitle('Plots show amounts of Vehicles by Junction, each Junction by 1/4 day (6h)', fontsize=20);"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:29.732894Z",
+						"iopub.status.busy": "2021-09-27T02:06:29.732207Z",
+						"iopub.status.idle": "2021-09-27T02:06:30.241219Z",
+						"shell.execute_reply": "2021-09-27T02:06:30.240689Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:08.512484Z"
+					},
+					"papermill": {
+						"duration": 0.662558,
+						"end_time": "2021-09-27T02:06:30.241351Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:29.578793Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"f, ax = plt.subplots(figsize=(17, 5))\n",
+					"foo = data[1][:400]\n",
+					"foo.Vehicles.plot(lw=3)\n",
+					"foo.Vehicles.rolling('D').mean().plot(lw=3)\n",
+					"foo.Vehicles.rolling('D').std().plot(lw=3)\n",
+					"plt.legend(['Junction 1', 'Rolling Mean A Day', 'Rolling Std A Day'])\n",
+					"plt.grid(True, alpha=0.75, ls='-.')\n",
+					"plt.title('Plot show amounts of Vehicles first 400 hours', fontsize=20)\n",
+					"plt.show()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:30.528207Z",
+						"iopub.status.busy": "2021-09-27T02:06:30.520663Z",
+						"iopub.status.idle": "2021-09-27T02:06:30.842928Z",
+						"shell.execute_reply": "2021-09-27T02:06:30.843429Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:08.999699Z"
+					},
+					"papermill": {
+						"duration": 0.471671,
+						"end_time": "2021-09-27T02:06:30.843598Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:30.371927Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"f, ax = plt.subplots(figsize=(17, 5))\n",
+					"foo = data[2][:400]\n",
+					"foo.Vehicles.plot(lw=3)\n",
+					"foo.Vehicles.rolling('D').mean().plot(lw=3)\n",
+					"foo.Vehicles.rolling('D').std().plot(lw=3)\n",
+					"plt.legend(['Junction 2', 'Rolling Mean A Day', 'Rolling Std A Day'])\n",
+					"plt.grid(True, alpha=0.75, ls='-.')\n",
+					"plt.title('Plot show amounts of Vehicles first 400 hours', fontsize=20)\n",
+					"plt.show()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:31.189988Z",
+						"iopub.status.busy": "2021-09-27T02:06:31.180323Z",
+						"iopub.status.idle": "2021-09-27T02:06:31.45271Z",
+						"shell.execute_reply": "2021-09-27T02:06:31.452009Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:09.311903Z"
+					},
+					"papermill": {
+						"duration": 0.472874,
+						"end_time": "2021-09-27T02:06:31.452855Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:30.979981Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"f, ax = plt.subplots(figsize=(17, 5))\n",
+					"foo = data[3][:400]\n",
+					"foo.Vehicles.plot(lw=3)\n",
+					"foo.Vehicles.rolling('D').mean().plot(lw=3)\n",
+					"foo.Vehicles.rolling('D').std().plot(lw=3)\n",
+					"plt.legend(['Junction 3', 'Rolling Mean A Day', 'Rolling Std A Day'])\n",
+					"plt.grid(True, alpha=0.75, ls='-.')\n",
+					"plt.title('Plot show amounts of Vehicles first 400 hours', fontsize=20)\n",
+					"plt.show()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:31.783062Z",
+						"iopub.status.busy": "2021-09-27T02:06:31.755776Z",
+						"iopub.status.idle": "2021-09-27T02:06:32.061619Z",
+						"shell.execute_reply": "2021-09-27T02:06:32.062101Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:09.616892Z"
+					},
+					"papermill": {
+						"duration": 0.471597,
+						"end_time": "2021-09-27T02:06:32.062265Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:31.590668Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"f, ax = plt.subplots(figsize=(17, 5))\n",
+					"foo = data[4][:400]\n",
+					"foo.Vehicles.plot(lw=3)\n",
+					"foo.Vehicles.rolling('D').mean().plot(lw=3)\n",
+					"foo.Vehicles.rolling('D').std().plot(lw=3)\n",
+					"plt.legend(['Junction 4', 'Rolling Mean A Day', 'Rolling Std A Day'])\n",
+					"plt.grid(True, alpha=0.75, ls='-.')\n",
+					"plt.title('Plot show amounts of Vehicles first 400 hours', fontsize=20)\n",
+					"plt.show()"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.154253,
+						"end_time": "2021-09-27T02:06:32.360003Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:32.20575Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Auto correlation plot**\n",
+					"- The data lie outside the blue has 95% effect to data"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:32.650486Z",
+						"iopub.status.busy": "2021-09-27T02:06:32.649795Z",
+						"iopub.status.idle": "2021-09-27T02:06:32.652466Z",
+						"shell.execute_reply": "2021-09-27T02:06:32.651875Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:09.912073Z"
+					},
+					"papermill": {
+						"duration": 0.147366,
+						"end_time": "2021-09-27T02:06:32.652595Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:32.505229Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"def make_autocorrelation(junction=1):\n",
+					"    f, ax = plt.subplots(figsize=(17, 6), nrows=2)\n",
+					"    plot_acf(data[junction].Vehicles, title=f\"Autocorrelation of amounts of Vehicles in Junction {junction}\", ax=ax[0])\n",
+					"    plot_pacf(data[junction].Vehicles, title=f\"Partial Autocorrelation of amounts of Vehicles Junction {junction}\", ax=ax[1])\n",
+					"    plt.show()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:32.977524Z",
+						"iopub.status.busy": "2021-09-27T02:06:32.976783Z",
+						"iopub.status.idle": "2021-09-27T02:06:33.396917Z",
+						"shell.execute_reply": "2021-09-27T02:06:33.397421Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:09.917794Z"
+					},
+					"papermill": {
+						"duration": 0.603404,
+						"end_time": "2021-09-27T02:06:33.397595Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:32.794191Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"make_autocorrelation(1)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:33.72775Z",
+						"iopub.status.busy": "2021-09-27T02:06:33.727062Z",
+						"iopub.status.idle": "2021-09-27T02:06:34.132881Z",
+						"shell.execute_reply": "2021-09-27T02:06:34.132238Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:10.340018Z"
+					},
+					"papermill": {
+						"duration": 0.594389,
+						"end_time": "2021-09-27T02:06:34.133016Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:33.538627Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"make_autocorrelation(2)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:34.437618Z",
+						"iopub.status.busy": "2021-09-27T02:06:34.436969Z",
+						"iopub.status.idle": "2021-09-27T02:06:34.86056Z",
+						"shell.execute_reply": "2021-09-27T02:06:34.861082Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:10.749448Z"
+					},
+					"papermill": {
+						"duration": 0.580242,
+						"end_time": "2021-09-27T02:06:34.861248Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:34.281006Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"make_autocorrelation(3)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:35.150484Z",
+						"iopub.status.busy": "2021-09-27T02:06:35.149803Z",
+						"iopub.status.idle": "2021-09-27T02:06:35.524555Z",
+						"shell.execute_reply": "2021-09-27T02:06:35.525039Z",
+						"shell.execute_reply.started": "2021-09-27T02:03:11.156341Z"
+					},
+					"papermill": {
+						"duration": 0.521971,
+						"end_time": "2021-09-27T02:06:35.525205Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:35.003234Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"make_autocorrelation(4)"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.143823,
+						"end_time": "2021-09-27T02:06:35.818591Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:35.674768Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"- Month has **negative** correlation with Year\n",
+					"- The correlation of Vehicles and Year is equal to Vehicles and Hour\n",
+					"\n",
+					"**=> Can drop Year or Hour because it's the same**"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.144058,
+						"end_time": "2021-09-27T02:06:36.107112Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:35.963054Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"# Modeling"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.143333,
+						"end_time": "2021-09-27T02:06:36.39535Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:36.252017Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Create a make metrics function to return R² Score and RMSE from a list of models**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:36.685798Z",
+						"iopub.status.busy": "2021-09-27T02:06:36.685144Z",
+						"iopub.status.idle": "2021-09-27T02:06:36.690916Z",
+						"shell.execute_reply": "2021-09-27T02:06:36.691427Z",
+						"shell.execute_reply.started": "2021-09-27T02:04:52.00464Z"
+					},
+					"papermill": {
+						"duration": 0.152724,
+						"end_time": "2021-09-27T02:06:36.691615Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:36.538891Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"def make_metrics(models):\n",
+					"    data = {\n",
+					"        'name': [model.name for model in models[1:]],\n",
+					"        'r2': [model.r2 for model in models[1:]],\n",
+					"        'rmse': [model.rmse for model in models[1:]]\n",
+					"    }\n",
+					"    data['name'] = 'average R2 and sum RMSE'\n",
+					"    data['r2'].append(np.mean(data['r2']))\n",
+					"    data['rmse'].append(np.sum(data['rmse']))\n",
+					"    return pd.DataFrame(data)"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.143552,
+						"end_time": "2021-09-27T02:06:36.97909Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:36.835538Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Create a function to create a new dataset**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:37.270955Z",
+						"iopub.status.busy": "2021-09-27T02:06:37.270265Z",
+						"iopub.status.idle": "2021-09-27T02:06:37.298625Z",
+						"shell.execute_reply": "2021-09-27T02:06:37.297915Z",
+						"shell.execute_reply.started": "2021-09-27T02:04:54.964928Z"
+					},
+					"papermill": {
+						"duration": 0.175677,
+						"end_time": "2021-09-27T02:06:37.298826Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:37.123149Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"z_data = get_list_data(z_df)\n",
+					"for i in z_data:\n",
+					"    print(i.head(1))"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.143707,
+						"end_time": "2021-09-27T02:06:37.586928Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:37.443221Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Create a class for a frame for machine learning model**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:37.894088Z",
+						"iopub.status.busy": "2021-09-27T02:06:37.893186Z",
+						"iopub.status.idle": "2021-09-27T02:06:37.895749Z",
+						"shell.execute_reply": "2021-09-27T02:06:37.895158Z",
+						"shell.execute_reply.started": "2021-09-27T02:04:56.012173Z"
+					},
+					"papermill": {
+						"duration": 0.164037,
+						"end_time": "2021-09-27T02:06:37.895889Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:37.731852Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"class Model:\n",
+					"  def __init__(self, name, data, predict_features, test_size, ml_model):\n",
+					"    self.name = name\n",
+					"    self.data = data\n",
+					"    self.predict_features = predict_features\n",
+					"    self.is_trained = False\n",
+					"    self.test_size = test_size\n",
+					"    self.ml_model = ml_model\n",
+					"    self.do_things()\n",
+					"\n",
+					"  def cal_rmse(self):\n",
+					"    self.rmse = mean_squared_error(self.ytest, self.ypredict, squared=False)\n",
+					"    return self.rmse\n",
+					"\n",
+					"  def prequisite(self, test_size):\n",
+					"    self.features = [i for i in self.data.columns if i != self.predict_features]\n",
+					"    self.X = self.data[self.features].values\n",
+					"    self.y = self.data[self.predict_features].values\n",
+					"    self.Xtrain, self.Xtest, self.ytrain, self.ytest = train_test_split(self.X, self.y, test_size=test_size)\n",
+					"    return None\n",
+					"\n",
+					"  def fit(self):\n",
+					"    self.is_trained = True\n",
+					"    self.ml_model.fit(self.Xtrain, self.ytrain)\n",
+					"    self.ypredict = self.ml_model.predict(self.Xtest)\n",
+					"    return self.ml_model\n",
+					"\n",
+					"  def cal_r2_score(self):\n",
+					"    self.r2 = r2_score(self.ytest, self.ypredict)\n",
+					"    return self.r2\n",
+					"\n",
+					"  def do_things(self) -> None:\n",
+					"    self.prequisite(self.test_size)\n",
+					"    self.fit()\n",
+					"    self.cal_rmse()\n",
+					"    self.cal_r2_score()\n",
+					"    return None\n",
+					"\n",
+					"  def feature_importances(self, ax) -> None:\n",
+					"    feature_importances = self.ml_model.feature_importances_\n",
+					"    index = lag_models[1].features\n",
+					"    data = pd.DataFrame(pd.Series(feature_importances, index=index).nlargest(10)).reset_index()\n",
+					"    data.columns = ['Features', 'Value']\n",
+					"    g = sns.barplot(data=data, x='Features', y='Value', ax=ax)\n",
+					"    for p in g.patches:\n",
+					"        ax.annotate(\n",
+					"            format(p.get_height(), '.2f'),\n",
+					"            (p.get_x() + p.get_width() / 2, p.get_height() + 0.02),\n",
+					"            ha='center', va='center', weight='bold', fontsize=9\n",
+					"        )\n",
+					"    ax.set_title(f'Plot of {self.name}', fontsize=12)\n",
+					"    ax.grid(True, ls='-.', alpha=0.7)\n",
+					"    ax.set_ylim(0, 1)\n",
+					"\n",
+					"  def __repr__(self) -> str:\n",
+					"    if not self.is_trained:\n",
+					"      return f'<{self.name}> (is not trained yet)>'\n",
+					"    return f'<({self.name}: [R² Score: {self.r2}], [RMSE: {self.rmse}])>'"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.145126,
+						"end_time": "2021-09-27T02:06:38.185078Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:38.039952Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Training models for 4 junction with normal data**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:38.479722Z",
+						"iopub.status.busy": "2021-09-27T02:06:38.479066Z",
+						"iopub.status.idle": "2021-09-27T02:06:44.299646Z",
+						"shell.execute_reply": "2021-09-27T02:06:44.299112Z",
+						"shell.execute_reply.started": "2021-09-27T02:04:57.510115Z"
+					},
+					"papermill": {
+						"duration": 5.969361,
+						"end_time": "2021-09-27T02:06:44.29979Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:38.330429Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"models = [None]\n",
+					"for i in range(1, 5):\n",
+					"    models += [\n",
+					"        Model(\n",
+					"            ml_model=RandomForestRegressor(),\n",
+					"            name=f'Dataset of junction {i}',\n",
+					"            data=data[i],\n",
+					"            predict_features='Vehicles',\n",
+					"            test_size=1/4\n",
+					"        )\n",
+					"    ]\n",
+					"    \n",
+					"make_metrics(models)"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.145728,
+						"end_time": "2021-09-27T02:06:44.592784Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:44.447056Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Training models for 4 junction with Z Score Normalization**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:44.892017Z",
+						"iopub.status.busy": "2021-09-27T02:06:44.890907Z",
+						"iopub.status.idle": "2021-09-27T02:06:50.709817Z",
+						"shell.execute_reply": "2021-09-27T02:06:50.709284Z",
+						"shell.execute_reply.started": "2021-09-27T02:05:03.190442Z"
+					},
+					"papermill": {
+						"duration": 5.972284,
+						"end_time": "2021-09-27T02:06:50.709959Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:44.737675Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"z_models = [None]\n",
+					"for i in range(1, 5):\n",
+					"    z_models += [\n",
+					"        Model(\n",
+					"            ml_model=RandomForestRegressor(),\n",
+					"            name=f'Dataset of junction {i}',\n",
+					"            data=z_data[i],\n",
+					"            predict_features='Vehicles',\n",
+					"            test_size=1/4\n",
+					"        )\n",
+					"    ]\n",
+					"\n",
+					"make_metrics(z_models)"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.145515,
+						"end_time": "2021-09-27T02:06:51.002193Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:50.856678Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Create lag data**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:51.296889Z",
+						"iopub.status.busy": "2021-09-27T02:06:51.296245Z",
+						"iopub.status.idle": "2021-09-27T02:06:51.323946Z",
+						"shell.execute_reply": "2021-09-27T02:06:51.324396Z",
+						"shell.execute_reply.started": "2021-09-27T02:05:08.991357Z"
+					},
+					"papermill": {
+						"duration": 0.175929,
+						"end_time": "2021-09-27T02:06:51.324582Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:51.148653Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"lag_df = df.copy()\n",
+					"for i in range(1, 3):\n",
+					"    lag_df[f'Vehicles_lag_{i}'] = df.Vehicles.shift(i)\n",
+					"\n",
+					"# drop all rows with nan, because lag data cause nan\n",
+					"lag_df.dropna(inplace=True)\n",
+					"lag_df.head()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:51.620081Z",
+						"iopub.status.busy": "2021-09-27T02:06:51.619438Z",
+						"iopub.status.idle": "2021-09-27T02:06:51.650578Z",
+						"shell.execute_reply": "2021-09-27T02:06:51.649908Z",
+						"shell.execute_reply.started": "2021-09-27T02:05:09.024464Z"
+					},
+					"papermill": {
+						"duration": 0.180148,
+						"end_time": "2021-09-27T02:06:51.650718Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:51.47057Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"lag_data = get_list_data(lag_df, drop=['Year'])\n",
+					"for i in lag_data:\n",
+					"    print(i.head(1))"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.145334,
+						"end_time": "2021-09-27T02:06:51.943033Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:51.797699Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Lag data is appropriate for time series data, use for create the auto correlation**"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:06:52.243389Z",
+						"iopub.status.busy": "2021-09-27T02:06:52.242739Z",
+						"iopub.status.idle": "2021-09-27T02:07:00.165944Z",
+						"shell.execute_reply": "2021-09-27T02:07:00.166413Z",
+						"shell.execute_reply.started": "2021-09-27T02:05:09.065416Z"
+					},
+					"papermill": {
+						"duration": 8.077512,
+						"end_time": "2021-09-27T02:07:00.166588Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:06:52.089076Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"lag_models = [None]\n",
+					"for i in range(1, 5):\n",
+					"    lag_models += [\n",
+					"        Model(\n",
+					"            ml_model=RandomForestRegressor(),\n",
+					"            name=f'Dataset of junction {i} with lag data',\n",
+					"            data=lag_data[i],\n",
+					"            predict_features='Vehicles',\n",
+					"            test_size=1/3\n",
+					"        )\n",
+					"    ]\n",
+					"\n",
+					"make_metrics(lag_models)"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.147662,
+						"end_time": "2021-09-27T02:07:00.463291Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:07:00.315629Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Feature importances of a model**\n",
+					"\n",
+					"*The correlate value as close as 1 is best*"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:07:00.760246Z",
+						"iopub.status.busy": "2021-09-27T02:07:00.75964Z",
+						"iopub.status.idle": "2021-09-27T02:07:01.66442Z",
+						"shell.execute_reply": "2021-09-27T02:07:01.664913Z",
+						"shell.execute_reply.started": "2021-09-27T02:05:16.949911Z"
+					},
+					"papermill": {
+						"duration": 1.054527,
+						"end_time": "2021-09-27T02:07:01.665081Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:07:00.610554Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"f, ax = plt.subplots(nrows=2, ncols=2, figsize=(16, 8))\n",
+					"k = 1\n",
+					"for i in range(2):\n",
+					"    for j in range(2):\n",
+					"        lag_models[k].feature_importances(ax[i, j])\n",
+					"        k += 1\n",
+					"f.suptitle('Plots show how features in each dataset correlating to each model', fontsize=15, fontweight='bold')        \n",
+					"f.tight_layout()"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.148401,
+						"end_time": "2021-09-27T02:07:01.968348Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:07:01.819947Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"**Predict for next 4 months**\n",
+					"\n",
+					"I predict for each Junction separately. I use previous prediction amounts of Vehicles for predicting next amounts of Vehicles."
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"execution": {
+						"iopub.execute_input": "2021-09-27T02:07:02.279354Z",
+						"iopub.status.busy": "2021-09-27T02:07:02.278651Z",
+						"iopub.status.idle": "2021-09-27T02:09:39.012081Z",
+						"shell.execute_reply": "2021-09-27T02:09:39.012629Z"
+					},
+					"papermill": {
+						"duration": 156.894673,
+						"end_time": "2021-09-27T02:09:39.012827Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:07:02.118154Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"for junction in range(1, 5):\n",
+					"    cur_time = lag_data[junction].tail(1).index[0] # get the current time, the last time of that dataset\n",
+					"    end_time = pd.Timestamp(2017, 11, 1, 0, 0, 0) # the end time after 4 months that we want to predict\n",
+					"    new_data = lag_data[junction].copy() # create a copy of dataset with that junction\n",
+					"    features = lag_models[junction].features # get features of each models in that junction\n",
+					"    while cur_time != end_time:\n",
+					"        last = new_data.tail(1).copy() # get the last row of dataset, just make a copy!\n",
+					"        new_data = pd.concat([new_data, last]) # concatenate the copy dataset with it's last row\n",
+					"        for i in range(1, 3): # create lag data\n",
+					"            new_data[f'Vehicles_lag_{i}'] = new_data.Vehicles.shift(i) # shift by periods i\n",
+					"        new_data.iloc[len(new_data) - 1, [1, 2, 3]] = [cur_time.month, cur_time.day, cur_time.hour] # assign value for those columns\n",
+					"        last = new_data[features].tail(1).values # create a new last data that drop all nan\n",
+					"        new_data.iloc[len(new_data) - 1, 0] = round(lag_models[1].ml_model.predict(last)[0]) # predicting for vehicles\n",
+					"        cur_time += timedelta(hours=1) # add to a cur_time 1 hour\n",
+					"    new_data.index = pd.date_range(\n",
+					"        start=lag_data[junction].head(1).index.values[0],\n",
+					"        end=pd.Timestamp(2017, 11, 1, 0, 0, 0),\n",
+					"        freq='H'\n",
+					"    ) # reassign index with the new time range with start is the start of data\n",
+					"      # and end time is the end time that initialize in start of the loop\n",
+					"    new_data.to_csv(f'vehicles_for_next_4_months_in_junction_{junction}.csv') # to csv that file\n",
+					"    print(f'|==Predicted for Junction {junction}==|')"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"papermill": {
+						"duration": 0.159619,
+						"end_time": "2021-09-27T02:09:39.323872Z",
+						"exception": false,
+						"start_time": "2021-09-27T02:09:39.164253Z",
+						"status": "completed"
+					},
+					"tags": []
+				},
+				"source": [
+					"# Conclusion\n",
+					"The highest RMSE is about 5.6, so when using last amounts of Vehicles to predict next hour amounts of Vehicles seem like that RMSE is raising. You guys can puts a review of your own into the comments section below. Be honest, i'm very newbie, so if has something may not right in my kernel, you can tell me about that, i'm very appreciate about that. Thanks for reading my kernel!"
+				]
+			}
+		]
+	}
+}

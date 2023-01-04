@@ -1,0 +1,26 @@
+{
+	"name": "PredictFlood",
+	"properties": {
+		"description": "This pipeline lerns about the rainfall and predicts possibility of flood situation",
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "Flood",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Minute",
+				"interval": 1,
+				"startTime": "2022-01-28T17:56:00",
+				"endTime": "2022-02-03T17:56:00",
+				"timeZone": "Pacific Standard Time"
+			}
+		}
+	}
+}

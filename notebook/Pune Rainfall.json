@@ -1,0 +1,876 @@
+{
+	"name": "Pune Rainfall",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "nrpsparkpool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "56g",
+			"driverCores": 8,
+			"executorMemory": "56g",
+			"executorCores": 8,
+			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "c3ca414c-977f-4c1d-9922-ae686e13994e"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/0c9ca8c4-a7be-4a66-a8b2-10b180fc0ca9/resourceGroups/LABS/providers/Microsoft.Synapse/workspaces/nrpsynapse/bigDataPools/nrpsparkpool",
+				"name": "nrpsparkpool",
+				"type": "Spark",
+				"endpoint": "https://nrpsynapse.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/nrpsparkpool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net",
+					"authHeader": null
+				},
+				"sparkVersion": "2.4",
+				"nodeCount": 10,
+				"cores": 8,
+				"memory": 56,
+				"extraHeader": null
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"![Rain Fall Prediction](https://1.bp.blogspot.com/-_p3M8657oUw/TjT9XyqhpjI/AAAAAAAAAJU/QiMtwJxNk9Q/s1600/kids.jpg)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"spark.version"
+				],
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#Import some basic libraries\r\n",
+					"import numpy as np\r\n",
+					"import pandas as pd"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"sparkDF = spark.read.load('abfss://test@nitinadls2.dfs.core.windows.net/PuneRainfall/PuneIndia.csv', format='csv', header=True)\r\n",
+					"print('Converting to Pandas.')\r\n",
+					"\r\n",
+					"data = sparkDF.toPandas()\r\n",
+					"print(data)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#Now we will cheak if any colomns is left empty\r\n",
+					"data.apply(lambda x:sum(x.isnull()), axis=0)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#We want the data in numbers, therefore we will replace the yes/no in floods coloumn by 1/0\r\n",
+					"data['FLOODS'].replace(['YES','NO'],[1,0],inplace=True)\r\n",
+					"#Let's see how are data looks like now\r\n",
+					"data.head()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#Now let's seperate the data which we are gonna use for prediction\r\n",
+					"x = data.iloc[:,1:14]\r\n",
+					"x.head()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#Now seperate the flood label from the dataset\r\n",
+					"y = data.iloc[:, -1]\r\n",
+					"y.head()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#Data might be widely distributed so let's scale it between 0 and 1\r\n",
+					"from sklearn import preprocessing\r\n",
+					"minmax = preprocessing.MinMaxScaler(feature_range=(0,1))\r\n",
+					"minmax.fit(x).transform(x)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#Let's divide the dataset into 2 sets:train and test in ratio (4:1)\r\n",
+					"from sklearn import model_selection,neighbors\r\n",
+					"from sklearn.model_selection import train_test_split\r\n",
+					"x_train,x_test,y_train,y_test=train_test_split(x,y,test_size=0.2)\r\n",
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#Let's see how our train set looks like\r\n",
+					"x_train.head()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"y_train.head()"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"\r\n",
+					"<H1>1. KNN Classifier</H1>"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"clf = neighbors.KNeighborsClassifier()\r\n",
+					"knn_clf = clf.fit(x_train,y_train)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#Let's predict chances of flood\r\n",
+					"y_predict = knn_clf.predict(x_test)\r\n",
+					"print('predicted chances of flood')\r\n",
+					"print(y_predict)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#Actual chances of flood\r\n",
+					"print(\"actual values of floods:\")\r\n",
+					"print(y_test)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from sklearn.model_selection import cross_val_score"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"knn_accuracy = cross_val_score(knn_clf,x_test,y_test,cv=3,scoring='accuracy',n_jobs=-1)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"knn_accuracy.mean()"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"<H1>2. Logistic Regression </H1>"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"x_train_std = minmax.fit_transform(x_train)\r\n",
+					"x_test_std = minmax.transform(x_test)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from sklearn.model_selection import cross_val_score\r\n",
+					"from sklearn.linear_model import LogisticRegression\r\n",
+					"\r\n",
+					"lr = LogisticRegression()\r\n",
+					"lr_clf = lr.fit(x_train_std,y_train)\r\n",
+					"\r\n",
+					"lr_accuracy = cross_val_score(lr_clf,x_test_std,y_test,cv=3,scoring='accuracy',n_jobs=-1)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"lr_accuracy.mean()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"y_predict = lr_clf.predict(x_test_std)\r\n",
+					"print('Predicted chances of flood')\r\n",
+					"print(y_predict)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"print('Actual chances of flood')\r\n",
+					"print(y_test.values)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from sklearn.metrics import accuracy_score,recall_score,roc_auc_score,confusion_matrix\r\n",
+					"print(\"\\naccuracy score: %f\"%(accuracy_score(y_test,y_predict)*100))\r\n",
+					"print(\"recall score: %f\"%(recall_score(y_test,y_predict)*100))\r\n",
+					"print(\"roc score: %f\"%(roc_auc_score(y_test,y_predict)*100))"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"<H1>3. Decision Tree Classification</H1>"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from sklearn.tree import DecisionTreeClassifier\r\n",
+					"dtc_clf = DecisionTreeClassifier()\r\n",
+					"dtc_clf.fit(x_train,y_train)\r\n",
+					"dtc_clf_acc = cross_val_score(dtc_clf,x_train_std,y_train,cv=3,scoring=\"accuracy\",n_jobs=-1)\r\n",
+					"dtc_clf_acc"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#Predicted flood chances\r\n",
+					"y_pred = dtc_clf.predict(x_test)\r\n",
+					"print(y_pred)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#Actual flood chances\r\n",
+					"print(\"actual values:\")\r\n",
+					"print(y_test.values)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from sklearn.metrics import accuracy_score,recall_score,roc_auc_score,confusion_matrix\r\n",
+					"print(\"\\naccuracy score:%f\"%(accuracy_score(y_test,y_pred)*100))\r\n",
+					"print(\"recall score:%f\"%(recall_score(y_test,y_pred)*100))\r\n",
+					"print(\"roc score:%f\"%(roc_auc_score(y_test,y_pred)*100))"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"<H1>4. Random Forest Classification</H1>"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from sklearn.ensemble import RandomForestClassifier\r\n",
+					"rmf = RandomForestClassifier(max_depth=3,random_state=0)\r\n",
+					"rmf_clf = rmf.fit(x_train,y_train)\r\n",
+					"rmf_clf"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"rmf_clf_acc = cross_val_score(rmf_clf,x_train_std,y_train,cv=3,scoring=\"accuracy\",n_jobs=-1)\r\n",
+					"#rmf_proba = cross_val_predict(rmf_clf,x_train_std,y_train,cv=3,method='predict_proba')"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"rmf_clf_acc"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"y_pred = rmf_clf.predict(x_test)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from sklearn.metrics import accuracy_score,recall_score,roc_auc_score,confusion_matrix\r\n",
+					"print(\"\\naccuracy score:%f\"%(accuracy_score(y_test,y_pred)*100))\r\n",
+					"print(\"recall score:%f\"%(recall_score(y_test,y_pred)*100))\r\n",
+					"print(\"roc score:%f\"%(roc_auc_score(y_test,y_pred)*100))"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"<H1>5. Ensemble Learning</H1>"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from sklearn.ensemble import VotingClassifier\r\n",
+					"from sklearn.ensemble import RandomForestClassifier\r\n",
+					"from sklearn.linear_model import LogisticRegression\r\n",
+					"from sklearn.neighbors import KNeighborsClassifier\r\n",
+					"\r\n",
+					"log_clf = LogisticRegression(solver=\"liblinear\", random_state=42)\r\n",
+					"rnd_clf = RandomForestClassifier(n_estimators=10, random_state=42)\r\n",
+					"knn_clf = KNeighborsClassifier()\r\n",
+					"\r\n",
+					"voting = VotingClassifier(\r\n",
+					"    estimators=[('lr', log_clf), ('rf', rnd_clf), ('knn', knn_clf)],\r\n",
+					"    voting='hard')"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"voting_clf = voting.fit(x_train, y_train)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from sklearn.metrics import accuracy_score\r\n",
+					"\r\n",
+					"for clf in (log_clf, rnd_clf, knn_clf, voting_clf):\r\n",
+					"    clf.fit(x_train, y_train)\r\n",
+					"    y_pred = clf.predict(x_test)\r\n",
+					"    print(clf.__class__.__name__, accuracy_score(y_test, y_pred))"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"<H1>Comparing All 5 prediction Models</H1>"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"models = []\r\n",
+					"from sklearn.neighbors import KNeighborsClassifier\r\n",
+					"from sklearn.linear_model import LogisticRegression\r\n",
+					"from sklearn.tree import DecisionTreeClassifier\r\n",
+					"from sklearn.svm import SVC\r\n",
+					"from sklearn.ensemble import RandomForestClassifier\r\n",
+					"from sklearn.ensemble import VotingClassifier\r\n",
+					"models.append(('KNN', KNeighborsClassifier()))\r\n",
+					"models.append(('LR', LogisticRegression()))\r\n",
+					"models.append(('DT', DecisionTreeClassifier()))\r\n",
+					"models.append(('RF', RandomForestClassifier()))\r\n",
+					"models.append(('EL', VotingClassifier(\r\n",
+					"    estimators=[('lr', log_clf), ('rf', rnd_clf), ('knn', knn_clf)],\r\n",
+					"    voting='hard')))\r\n",
+					"\r\n",
+					"\r\n",
+					"names = []\r\n",
+					"scores = []\r\n",
+					"for name, model in models:\r\n",
+					"    model.fit(x_train, y_train)\r\n",
+					"    y_pred = model.predict(x_test)\r\n",
+					"    scores.append(accuracy_score(y_test, y_pred))\r\n",
+					"    names.append(name)\r\n",
+					"tr_split = pd.DataFrame({'Name': names, 'Score': scores})\r\n",
+					"print(tr_split)"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"import seaborn as sns\r\n",
+					"from matplotlib import pyplot as plt\r\n",
+					"axis = sns.barplot(x = 'Name', y = 'Score', data =tr_split )\r\n",
+					"axis.set(xlabel='Classifier', ylabel='Accuracy')\r\n",
+					"for p in axis.patches:\r\n",
+					"    height = p.get_height()\r\n",
+					"    axis.text(p.get_x() + p.get_width()/2, height + 0.005, '{:1.4f}'.format(height), ha=\"center\") \r\n",
+					"    \r\n",
+					"plt.show()"
+				]
+			}
+		]
+	}
+}

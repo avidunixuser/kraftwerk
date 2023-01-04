@@ -1,0 +1,182 @@
+{
+	"name": "DelimitedText1",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureDataLakeStorage3",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "TestData_500K_PipeDelimited_UTF8.xls",
+				"folderPath": "raw_data",
+				"fileSystem": "telework"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": [
+			{
+				"name": "CovidFlag",
+				"type": "String"
+			},
+			{
+				"name": "Enabled",
+				"type": "String"
+			},
+			{
+				"name": "EmployeeID",
+				"type": "String"
+			},
+			{
+				"name": "DomainName",
+				"type": "String"
+			},
+			{
+				"name": "eEmployeeID",
+				"type": "String"
+			},
+			{
+				"name": "EmpNumber",
+				"type": "String"
+			},
+			{
+				"name": "FirstName",
+				"type": "String"
+			},
+			{
+				"name": "LastName",
+				"type": "String"
+			},
+			{
+				"name": "FullName",
+				"type": "String"
+			},
+			{
+				"name": "Employee_Title_Code",
+				"type": "String"
+			},
+			{
+				"name": "Title",
+				"type": "String"
+			},
+			{
+				"name": "Employee_LACODepartmentCode",
+				"type": "String"
+			},
+			{
+				"name": "Employee_LACOBudgetOrgCode",
+				"type": "String"
+			},
+			{
+				"name": "Employee_Type",
+				"type": "String"
+			},
+			{
+				"name": "Email",
+				"type": "String"
+			},
+			{
+				"name": "Supervisor",
+				"type": "String"
+			},
+			{
+				"name": "Manager_ID",
+				"type": "String"
+			},
+			{
+				"name": "ManagerSamAccountName",
+				"type": "String"
+			},
+			{
+				"name": "Manager_Email",
+				"type": "String"
+			},
+			{
+				"name": "Manager_LACODepartmentCode",
+				"type": "String"
+			},
+			{
+				"name": "Manager_LACOBudgetOrgCode",
+				"type": "String"
+			},
+			{
+				"name": "Manager_Title_Code",
+				"type": "String"
+			},
+			{
+				"name": "Manager_Desc",
+				"type": "String"
+			},
+			{
+				"name": "DateWorked",
+				"type": "String"
+			},
+			{
+				"name": "EnteredBy",
+				"type": "String"
+			},
+			{
+				"name": "Dept_CD",
+				"type": "String"
+			},
+			{
+				"name": "Deparment",
+				"type": "String"
+			},
+			{
+				"name": "Dept_Full_Desc",
+				"type": "String"
+			},
+			{
+				"name": "Service",
+				"type": "String"
+			},
+			{
+				"name": "Branch",
+				"type": "String"
+			},
+			{
+				"name": "Division",
+				"type": "String"
+			},
+			{
+				"name": "Section",
+				"type": "String"
+			},
+			{
+				"name": "TaskID",
+				"type": "String"
+			},
+			{
+				"name": "TaskName",
+				"type": "String"
+			},
+			{
+				"name": "TaskDescription",
+				"type": "String"
+			},
+			{
+				"name": "StartHours",
+				"type": "String"
+			},
+			{
+				"name": "EndHours",
+				"type": "String"
+			},
+			{
+				"name": "Hours",
+				"type": "String"
+			},
+			{
+				"name": "TimeType",
+				"type": "String"
+			}
+		]
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}

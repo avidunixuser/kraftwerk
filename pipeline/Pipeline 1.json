@@ -1,0 +1,46 @@
+{
+	"name": "Pipeline 1",
+	"properties": {
+		"activities": [
+			{
+				"name": "smartsheet",
+				"description": "This is a smartsheet REST API call",
+				"type": "WebActivity",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"url": "https://api.smartsheet.com/2.0/sheets/PWmXVc3hCPP9qCqwG9cgV7Vvq64ppwGRWXWpWJP1",
+					"connectVia": {
+						"referenceName": "AutoResolveIntegrationRuntime",
+						"type": "IntegrationRuntimeReference"
+					},
+					"method": "GET",
+					"linkedServices": [
+						{
+							"referenceName": "RestService1",
+							"type": "LinkedServiceReference"
+						}
+					],
+					"authentication": {
+						"type": "Basic",
+						"username": "avidunixuser@gmail.com",
+						"password": {
+							"type": "SecureString",
+							"value": "**********"
+						}
+					}
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2022-04-29T22:44:25Z"
+	},
+	"type": "Microsoft.Synapse/workspaces/pipelines"
+}

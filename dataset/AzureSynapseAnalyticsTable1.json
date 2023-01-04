@@ -1,0 +1,17 @@
+{
+	"name": "AzureSynapseAnalyticsTable1",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "BSCCDedicatedPoolAdultCovid",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlDWTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "bscc",
+			"table": "coviddata"
+		}
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}
