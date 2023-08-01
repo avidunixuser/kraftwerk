@@ -1,0 +1,10 @@
+{
+	"name": "nrpkeyvault",
+	"properties": {
+		"annotations": [],
+		"type": "AzureKeyVault",
+		"typeProperties": {
+			"baseUrl": "https://nrpedspkeyvault.vault.azure.net/"
+		}
+	}
+}
