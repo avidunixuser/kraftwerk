@@ -7,7 +7,7 @@
 		"nbformat": 4,
 		"nbformat_minor": 2,
 		"bigDataPool": {
-			"referenceName": "nrpsparkpool",
+			"referenceName": "nrpmcapsssa",
 			"type": "BigDataPoolReference"
 		},
 		"sessionProperties": {
@@ -21,14 +21,11 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b61cd902-2664-451a-8fa6-03309a528bf6"
+				"spark.autotune.trackingId": "fed00fec-f69b-4d3b-8bf4-fc8713b3844b"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"synapse_widget": {
-				"version": "0.1"
-			},
 			"enableDebugMode": false,
 			"kernelspec": {
 				"name": "synapse_pyspark",
@@ -38,20 +35,19 @@
 				"name": "python"
 			},
 			"a365ComputeOptions": {
-				"id": "/subscriptions/0c9ca8c4-a7be-4a66-a8b2-10b180fc0ca9/resourceGroups/LABS/providers/Microsoft.Synapse/workspaces/nrpsynapse/bigDataPools/nrpsparkpool",
-				"name": "nrpsparkpool",
+				"id": "/subscriptions/f42cdd05-e6d8-4cc0-81aa-a5b83a471c1f/resourceGroups/nrpcustomers/providers/Microsoft.Synapse/workspaces/nrpmcapssa/bigDataPools/nrpmcapsssa",
+				"name": "nrpmcapsssa",
 				"type": "Spark",
-				"endpoint": "https://nrpsynapse.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/nrpsparkpool",
+				"endpoint": "https://nrpmcapssa.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/nrpmcapsssa",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
-				"sparkVersion": "2.4",
-				"nodeCount": 10,
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
 				"cores": 8,
 				"memory": 56,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -105,7 +101,7 @@
 					"from sklearn.metrics import r2_score, mean_squared_error\n",
 					"from statsmodels.graphics.tsaplots import plot_acf, plot_pacf"
 				],
-				"execution_count": 47
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
@@ -131,15 +127,15 @@
 					"import fsspec\n",
 					"import pandas as pd\n",
 					"\n",
-					"adls_account_name = 'nitinadls2' #Provide exact ADLS account name\n",
-					"adls_account_key = '7xhN9hCHWwtYasQqHPTWck9whdjna/eXSwTmu+EESK5kVAI0OxpO0h3u1AP9MG++0A4ajJPP7RzcO64cn+WzNg==' #Provide exact ADLS account key\n",
+					"adls_account_name = 'nrpscrratchdata' #Provide exact ADLS account name\n",
+					"adls_account_key = 'Bou2Ri3GZQ0BgfNJ4iOIB49tLWn5XRPkdwsT16G7s5fDHclkDSvhku+TyHPjqxKOehFNdR1lgGgT+AStBPV75w==' #Provide exact ADLS account key\n",
 					"\n",
 					"fsspec_handle = fsspec.open('abfs://synapse/traffic.csv', account_name=adls_account_name, account_key=adls_account_key)\n",
 					"\n",
 					"with fsspec_handle.open() as f:\n",
-					"    df = pandas.read_csv(f)"
+					"    df = pd.read_csv(f)"
 				],
-				"execution_count": 48
+				"execution_count": 7
 			},
 			{
 				"cell_type": "markdown",
@@ -179,7 +175,7 @@
 				"source": [
 					"df.describe()"
 				],
-				"execution_count": 49
+				"execution_count": 8
 			},
 			{
 				"cell_type": "markdown",
@@ -230,7 +226,7 @@
 				"source": [
 					"df"
 				],
-				"execution_count": 50
+				"execution_count": 9
 			},
 			{
 				"cell_type": "code",
@@ -272,7 +268,7 @@
 					"df\n",
 					""
 				],
-				"execution_count": 51
+				"execution_count": 10
 			},
 			{
 				"cell_type": "markdown",
@@ -313,7 +309,7 @@
 				"source": [
 					"df.drop('ID', axis=1, inplace=True)"
 				],
-				"execution_count": 52
+				"execution_count": 11
 			},
 			{
 				"cell_type": "markdown",
@@ -375,7 +371,7 @@
 					"    ax.grid(True, ls='-.', alpha=0.75)\n",
 					"    plt.show()"
 				],
-				"execution_count": 53
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -399,7 +395,7 @@
 				"source": [
 					"make_hist(1)"
 				],
-				"execution_count": 54
+				"execution_count": 13
 			},
 			{
 				"cell_type": "code",
@@ -423,7 +419,7 @@
 				"source": [
 					"make_hist(2)"
 				],
-				"execution_count": 55
+				"execution_count": 14
 			},
 			{
 				"cell_type": "code",
@@ -447,7 +443,7 @@
 				"source": [
 					"make_hist(3)"
 				],
-				"execution_count": 56
+				"execution_count": 15
 			},
 			{
 				"cell_type": "code",
@@ -471,7 +467,7 @@
 				"source": [
 					"make_hist(4)"
 				],
-				"execution_count": 57
+				"execution_count": 16
 			},
 			{
 				"cell_type": "markdown",
@@ -511,7 +507,7 @@
 				"source": [
 					"df.tail(1).Year[0]"
 				],
-				"execution_count": 58
+				"execution_count": 21
 			},
 			{
 				"cell_type": "code",
@@ -543,7 +539,7 @@
 					"    ax.grid(True, ls='-.', alpha=0.75)\n",
 					"    plt.show()"
 				],
-				"execution_count": 59
+				"execution_count": 22
 			},
 			{
 				"cell_type": "code",
@@ -567,7 +563,7 @@
 				"source": [
 					"make_time_series_plot(1)"
 				],
-				"execution_count": 60
+				"execution_count": 23
 			},
 			{
 				"cell_type": "code",
@@ -590,7 +586,8 @@
 				},
 				"source": [
 					"make_time_series_plot(2)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -613,7 +610,8 @@
 				},
 				"source": [
 					"make_time_series_plot(3)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -636,7 +634,8 @@
 				},
 				"source": [
 					"make_time_series_plot(4)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -669,7 +668,8 @@
 					"plt.ylabel('Junction')\n",
 					"f.suptitle('Line plot showing the pattern amounts of Vehicles by Year and by Junction', fontsize=20)\n",
 					"plt.show()"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -718,7 +718,8 @@
 					"plt.ylabel('Junction')\n",
 					"f.suptitle('Histogram showing the distribution of Vehicles by Year and by Junction', fontsize=20)\n",
 					"plt.show()"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -759,7 +760,8 @@
 				},
 				"source": [
 					"standardization = lambda x: StandardScaler().fit_transform(x)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -784,7 +786,8 @@
 					"z_df = df.copy()\n",
 					"z_df['Vehicles'] = standardization(z_df.Vehicles.values.reshape(-1, 1))\n",
 					"z_df.head()"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -817,7 +820,8 @@
 					"plt.ylabel('Junction')\n",
 					"f.suptitle('Histogram showing the distribution of Vehicles by Year and by Junction when data transfrom to Z Score', fontsize=20)\n",
 					"plt.show()"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -867,7 +871,8 @@
 					"plt.ylabel('Junction')\n",
 					"f.suptitle('Boxplot showing the range of amounts Vehicles by Year and by Junction', fontsize=20)\n",
 					"plt.show()"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -914,7 +919,8 @@
 					"sns.heatmap(corr, annot=True, fmt='.2f', vmin=-1, vmax=1, square=True, linewidths=1)\n",
 					"f.suptitle('Heatmap showing the correlation of data attributes', fontsize=20)\n",
 					"plt.show()"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -946,7 +952,8 @@
 					"  # create a list of dataframe has the data in that junction and remove the junction identify\n",
 					"  dataf = [dataf[dataf.Junction == i].drop('Junction', axis=1) for i in range(5)]\n",
 					"  return dataf"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -971,7 +978,8 @@
 					"data = get_list_data(df)\n",
 					"for i in data:\n",
 					"    print(i.head(1))"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -999,7 +1007,8 @@
 					"    ax[i].grid(True, alpha=0.75, lw=1, ls='-.')\n",
 					"    ax[i].set_title(f'Junction {i + 1}')\n",
 					"f.suptitle('Plots show amounts of Vehicles by Junction, each Junction by day (24h)', fontsize=20);"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1028,7 +1037,8 @@
 					"    ax[i].set_ylabel('Số lượng', fontsize=15)\n",
 					"    ax[i].set_title(f'Junction {i + 1}')\n",
 					"f.suptitle('Plots show amounts of Vehicles by Junction, each Junction by Month', fontsize=20);"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1056,7 +1066,8 @@
 					"    ax[i].grid(True, alpha=0.75, lw=1, ls='-.')\n",
 					"    ax[i].set_title(f'Junction {i + 1}')\n",
 					"f.suptitle('Plots show amounts of Vehicles by Junction, each Junction by haft day(12h)', fontsize=20);"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1084,7 +1095,8 @@
 					"    ax[i].grid(True, alpha=0.75, lw=1, ls='-.')\n",
 					"    ax[i].set_title(f'Junction {i + 1}')\n",
 					"f.suptitle('Plots show amounts of Vehicles by Junction, each Junction by 1/4 day (6h)', fontsize=20);"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1115,7 +1127,8 @@
 					"plt.grid(True, alpha=0.75, ls='-.')\n",
 					"plt.title('Plot show amounts of Vehicles first 400 hours', fontsize=20)\n",
 					"plt.show()"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1146,7 +1159,8 @@
 					"plt.grid(True, alpha=0.75, ls='-.')\n",
 					"plt.title('Plot show amounts of Vehicles first 400 hours', fontsize=20)\n",
 					"plt.show()"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1177,7 +1191,8 @@
 					"plt.grid(True, alpha=0.75, ls='-.')\n",
 					"plt.title('Plot show amounts of Vehicles first 400 hours', fontsize=20)\n",
 					"plt.show()"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1208,7 +1223,8 @@
 					"plt.grid(True, alpha=0.75, ls='-.')\n",
 					"plt.title('Plot show amounts of Vehicles first 400 hours', fontsize=20)\n",
 					"plt.show()"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1252,7 +1268,8 @@
 					"    plot_acf(data[junction].Vehicles, title=f\"Autocorrelation of amounts of Vehicles in Junction {junction}\", ax=ax[0])\n",
 					"    plot_pacf(data[junction].Vehicles, title=f\"Partial Autocorrelation of amounts of Vehicles Junction {junction}\", ax=ax[1])\n",
 					"    plt.show()"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1275,7 +1292,8 @@
 				},
 				"source": [
 					"make_autocorrelation(1)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1298,7 +1316,8 @@
 				},
 				"source": [
 					"make_autocorrelation(2)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1321,7 +1340,8 @@
 				},
 				"source": [
 					"make_autocorrelation(3)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1344,7 +1364,8 @@
 				},
 				"source": [
 					"make_autocorrelation(4)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1427,7 +1448,8 @@
 					"    data['r2'].append(np.mean(data['r2']))\n",
 					"    data['rmse'].append(np.sum(data['rmse']))\n",
 					"    return pd.DataFrame(data)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1468,7 +1490,8 @@
 					"z_data = get_list_data(z_df)\n",
 					"for i in z_data:\n",
 					"    print(i.head(1))"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1564,7 +1587,8 @@
 					"    if not self.is_trained:\n",
 					"      return f'<{self.name}> (is not trained yet)>'\n",
 					"    return f'<({self.name}: [R² Score: {self.r2}], [RMSE: {self.rmse}])>'"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1615,7 +1639,8 @@
 					"    ]\n",
 					"    \n",
 					"make_metrics(models)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1666,7 +1691,8 @@
 					"    ]\n",
 					"\n",
 					"make_metrics(z_models)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1711,7 +1737,8 @@
 					"# drop all rows with nan, because lag data cause nan\n",
 					"lag_df.dropna(inplace=True)\n",
 					"lag_df.head()"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "code",
@@ -1736,7 +1763,8 @@
 					"lag_data = get_list_data(lag_df, drop=['Year'])\n",
 					"for i in lag_data:\n",
 					"    print(i.head(1))"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1787,7 +1815,8 @@
 					"    ]\n",
 					"\n",
 					"make_metrics(lag_models)"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1835,7 +1864,8 @@
 					"        k += 1\n",
 					"f.suptitle('Plots show how features in each dataset correlating to each model', fontsize=15, fontweight='bold')        \n",
 					"f.tight_layout()"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1896,7 +1926,8 @@
 					"      # and end time is the end time that initialize in start of the loop\n",
 					"    new_data.to_csv(f'vehicles_for_next_4_months_in_junction_{junction}.csv') # to csv that file\n",
 					"    print(f'|==Predicted for Junction {junction}==|')"
-				]
+				],
+				"execution_count": null
 			},
 			{
 				"cell_type": "markdown",
@@ -1912,7 +1943,8 @@
 				},
 				"source": [
 					"# Conclusion\n",
-					"The highest RMSE is about 5.6, so when using last amounts of Vehicles to predict next hour amounts of Vehicles seem like that RMSE is raising. You guys can puts a review of your own into the comments section below. Be honest, i'm very newbie, so if has something may not right in my kernel, you can tell me about that, i'm very appreciate about that. Thanks for reading my kernel!"
+					"The highest RMSE is about 5.6, so when using last amounts of Vehicles to predict next hour amounts of Vehicles seem like that RMSE is increasing\n",
+					". "
 				]
 			}
 		]
